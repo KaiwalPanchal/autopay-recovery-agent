@@ -7,7 +7,7 @@ import { CustomerTable } from "../components/CustomerTable";
 import { CallModal } from "../components/CallModal";
 import { CustomerDetailModal } from "../components/CustomerDetailModal";
 import { Customer, StatsSummary, fetchCustomers, fetchStats, resetCustomers } from "../lib/api";
-import { ShieldAlert, Sparkles, Terminal } from "lucide-react";
+import { ShieldAlert, Terminal } from "lucide-react";
 
 export default function DashboardPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -54,35 +54,32 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
+    <div className="min-h-screen flex flex-col bg-paper text-ink">
       <Header
         onReset={handleReset}
         onRefresh={loadData}
         isResetting={isResetting}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-8 space-y-6">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-5 sm:px-8 py-12 space-y-14">
         {/* Architectural Principle Callout */}
-        <div className="p-4 rounded-xl border border-indigo-500/20 bg-indigo-950/20 backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 className="text-xs font-bold text-white uppercase tracking-wider">
-                Core Safety Principle: Separation of Concerns
-              </h2>
-              <p className="text-xs text-indigo-200/80">
-                <strong>LLM decides what the customer means.</strong> Backend decides what the system is allowed to do. The voice model never invents amounts, links, or outcomes.
-              </p>
-            </div>
+        <section className="border-t border-ink pt-5 grid gap-6 md:grid-cols-[1fr_auto] md:items-end">
+          <div className="max-w-2xl">
+            <h2 className="label flex items-center gap-2">
+              <ShieldAlert className="w-3.5 h-3.5" aria-hidden="true" />
+              Core Safety Principle: Separation of Concerns
+            </h2>
+            <p className="font-serif text-2xl sm:text-3xl leading-tight tracking-tight mt-3">
+              <strong className="font-medium underline decoration-accent decoration-[3px] underline-offset-4">LLM decides what the customer means.</strong>{" "}
+              <span className="text-mute">Backend decides what the system is allowed to do. The voice model never invents amounts, links, or outcomes.</span>
+            </p>
           </div>
 
-          <div className="flex items-center gap-2 text-[11px] font-mono text-slate-400 shrink-0">
-            <Terminal className="w-3.5 h-3.5 text-indigo-400" />
+          <div className="flex items-center gap-2 label shrink-0">
+            <Terminal className="w-3.5 h-3.5" aria-hidden="true" />
             <span>FastAPI &middot; LiveKit Agents &middot; WebRTC / SIP</span>
           </div>
-        </div>
+        </section>
 
         {/* Stats KPIs */}
         <StatsCards stats={stats} />
@@ -96,7 +93,7 @@ export default function DashboardPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950 px-6 py-4 text-center text-xs text-slate-500">
+      <footer className="border-t border-line px-5 sm:px-8 py-6 text-center label">
         Autopay Recovery System &middot; LiveKit Voice Agent &middot; 10 Fictional Customer Dataset &middot; Deterministic Simulation
       </footer>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Phone, Info, CheckCircle2, Clock, Link2, XCircle, AlertCircle, ArrowUpRight } from "lucide-react";
+import { Phone, Clock, Link2, XCircle, AlertCircle, ArrowUpRight } from "lucide-react";
 import { Customer, formatPaise } from "../lib/api";
 
 interface CustomerTableProps {
@@ -17,60 +17,63 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
 }) => {
   const [filter, setFilter] = useState<string>("ALL");
 
+  const chipBase =
+    "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm border border-ink font-mono text-[11px] uppercase tracking-[0.1em] whitespace-nowrap";
+
   const getStatusBadge = (status: string, state: string) => {
     const s = status.toLowerCase();
     if (s === "recovered") {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-          <CheckCircle2 className="w-3.5 h-3.5" />
-          RECOVERED
+        <span className={chipBase}>
+          <span className="w-2 h-2 bg-accent border border-ink" aria-hidden="true"></span>
+          Recovered
         </span>
       );
     }
     if (s === "payment_link_sent") {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/30">
-          <Link2 className="w-3.5 h-3.5" />
-          LINK SENT
+        <span className={chipBase}>
+          <Link2 className="w-3 h-3" aria-hidden="true" />
+          Link sent
         </span>
       );
     }
     if (s === "scheduled") {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/30">
-          <Clock className="w-3.5 h-3.5" />
-          SCHEDULED
+        <span className={chipBase}>
+          <Clock className="w-3 h-3" aria-hidden="true" />
+          Scheduled
         </span>
       );
     }
     if (s === "cancel_requested") {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-500/10 text-slate-300 border border-slate-500/30">
-          <XCircle className="w-3.5 h-3.5" />
-          CANCEL REQUESTED
+        <span className={`${chipBase} border-dashed text-mute`}>
+          <XCircle className="w-3 h-3" aria-hidden="true" />
+          Cancel requested
         </span>
       );
     }
     if (s === "declined") {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30">
-          <XCircle className="w-3.5 h-3.5" />
-          DECLINED
+        <span className={`${chipBase} line-through`}>
+          <XCircle className="w-3 h-3" aria-hidden="true" />
+          Declined
         </span>
       );
     }
     if (s === "in_progress") {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 animate-pulse">
-          <Phone className="w-3.5 h-3.5" />
-          IN PROGRESS
+        <span className={chipBase}>
+          <span className="w-2 h-2 bg-accent border border-ink animate-pulse" aria-hidden="true"></span>
+          In progress
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/30">
-        <AlertCircle className="w-3.5 h-3.5" />
-        PAYMENT FAILED
+      <span className={`${chipBase} bg-ink text-paper`}>
+        <AlertCircle className="w-3 h-3" aria-hidden="true" />
+        Payment failed
       </span>
     );
   };
@@ -86,20 +89,20 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
   });
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/60 backdrop-blur-md overflow-hidden">
+    <section>
       {/* Table Header Controls */}
-      <div className="px-6 py-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="border-t border-ink pt-4 pb-5 flex flex-col lg:flex-row lg:items-end justify-between gap-5">
         <div>
-          <h2 className="text-base font-bold text-white tracking-wide">
-            CUSTOMER RECOVERY QUEUE
+          <h2 className="font-serif text-3xl font-medium tracking-tight">
+            Customer Recovery Queue
           </h2>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-mute mt-2 max-w-xl">
             10 Authentic customer personas with simulated payment failures &amp; deterministic outcomes
           </p>
         </div>
 
-        {/* Filter Pills */}
-        <div className="flex flex-wrap items-center gap-1.5 text-xs">
+        {/* Filter Tabs */}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2" role="group" aria-label="Filter customers">
           {[
             { id: "ALL", label: `All (${customers.length})` },
             { id: "FAILED", label: "Failed" },
@@ -111,10 +114,11 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
             <button
               key={tab.id}
               onClick={() => setFilter(tab.id)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+              aria-pressed={filter === tab.id}
+              className={`label !text-xs py-1 border-b-[3px] transition-colors ${
                 filter === tab.id
-                  ? "bg-indigo-600 text-white shadow-sm shadow-indigo-500/30"
-                  : "bg-slate-800/80 text-slate-400 hover:text-slate-200"
+                  ? "!text-ink border-accent"
+                  : "border-transparent hover:!text-ink"
               }`}
             >
               {tab.label}
@@ -125,21 +129,21 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
 
       {/* Table View */}
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm text-slate-300">
-          <thead className="bg-slate-950/60 text-xs uppercase font-medium text-slate-400 border-b border-slate-800">
-            <tr>
-              <th className="py-3 px-5">Customer &amp; Plan</th>
-              <th className="py-3 px-4">Overdue Amount (₹)</th>
-              <th className="py-3 px-4">Failure Reason</th>
-              <th className="py-3 px-4">Recovery Status</th>
-              <th className="py-3 px-4">Retries</th>
-              <th className="py-3 px-5 text-right">Actions</th>
+        <table className="w-full text-left text-sm text-ink tabular-nums">
+          <thead className="border-y border-ink">
+            <tr className="label">
+              <th className="py-3 pr-4 font-normal">Customer &amp; Plan</th>
+              <th className="py-3 px-4 font-normal">Overdue Amount (₹)</th>
+              <th className="py-3 px-4 font-normal">Failure Reason</th>
+              <th className="py-3 px-4 font-normal">Recovery Status</th>
+              <th className="py-3 px-4 font-normal">Retries</th>
+              <th className="py-3 pl-4 font-normal text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/70">
+          <tbody className="divide-y divide-line border-b border-ink">
             {filteredCustomers.length === 0 ? (
               <tr>
-                <td colSpan={6} className="py-8 text-center text-slate-500 text-xs">
+                <td colSpan={6} className="py-10 text-center text-mute text-xs">
                   No customers match the current filter.
                 </td>
               </tr>
@@ -148,56 +152,52 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                 return (
                   <tr
                     key={c.customer_id}
-                    className="hover:bg-slate-800/40 transition-colors group cursor-pointer"
+                    className="hover:bg-ink/[0.04] transition-colors group cursor-pointer"
                     onClick={() => onSelectCustomer(c)}
                   >
-                    <td className="py-3.5 px-5">
-                      <div className="font-semibold text-white group-hover:text-indigo-300 transition-colors flex items-center gap-2">
+                    <td className="py-4 pr-4">
+                      <div className="font-serif text-lg leading-tight flex items-baseline gap-2">
                         {c.name}
-                        <span className="text-[10px] font-mono text-slate-500">
+                        <span className="text-[10px] font-mono text-mute">
                           {c.customer_id}
                         </span>
                       </div>
-                      <div className="text-xs text-slate-400 flex items-center gap-2">
+                      <div className="text-xs text-mute flex items-center gap-2 mt-0.5">
                         <span>{c.subscription}</span>
                         <span>&middot;</span>
                         <span>Card on file: •••• {c.card_last4}</span>
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-4 font-semibold text-emerald-400">
+                    <td className="py-4 px-4 font-mono font-medium">
                       {formatPaise(c.amount_paise, c.currency)}
                     </td>
 
-                    <td className="py-3.5 px-4">
-                      <span className="px-2 py-0.5 rounded text-xs bg-slate-800 text-slate-300 capitalize border border-slate-700/50">
-                        {c.failure_reason.replace("_", " ")}
-                      </span>
+                    <td className="py-4 px-4 text-xs capitalize text-mute">
+                      {c.failure_reason.replace("_", " ")}
                     </td>
 
-                    <td className="py-3.5 px-4">
+                    <td className="py-4 px-4">
                       {getStatusBadge(c.status, c.current_state)}
                     </td>
 
-                    <td className="py-3.5 px-4 text-xs text-slate-400 font-mono">
+                    <td className="py-4 px-4 text-xs text-mute font-mono">
                       {c.retry_count} {c.retry_count === 1 ? "attempt" : "attempts"}
                     </td>
 
-                    <td className="py-3.5 px-5 text-right" onClick={(e) => e.stopPropagation()}>
+                    <td className="py-4 pl-4 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => onCallCustomer(c)}
-                          className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/30 transition-all flex items-center gap-1.5"
-                        >
-                          <Phone className="w-3.5 h-3.5" />
+                        <button onClick={() => onCallCustomer(c)} className="btn btn-primary">
+                          <Phone className="w-3.5 h-3.5" aria-hidden="true" />
                           <span>Call</span>
                         </button>
                         <button
                           onClick={() => onSelectCustomer(c)}
-                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                          className="btn !px-2"
                           title="View Customer Details & State"
+                          aria-label={`View details for ${c.name}`}
                         >
-                          <ArrowUpRight className="w-4 h-4" />
+                          <ArrowUpRight className="w-4 h-4" aria-hidden="true" />
                         </button>
                       </div>
                     </td>
@@ -208,6 +208,6 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
           </tbody>
         </table>
       </div>
-    </div>
+    </section>
   );
 };

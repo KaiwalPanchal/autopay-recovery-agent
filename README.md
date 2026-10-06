@@ -144,6 +144,10 @@ Terminal recordings of the real commands (each command is executed and its captu
 
 ![api auth](demo/03-api-auth.gif)
 
+**Operator dashboard**: minimal black-and-white editorial UI, one lime accent (`#7ec610`). It lists the fictional customers and drives the backend; it does not place live voice calls. Screenshot of the main page, captured from a running instance:
+
+![dashboard](docs/dashboard.png)
+
 ## Tests and evals
 
 ```bash

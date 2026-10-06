@@ -105,7 +105,7 @@ export const CallModal: React.FC<CallModalProps> = ({
             outcome: "RECOVERED",
             amount: formatPaise(customer.amount_paise, customer.currency),
             action: "retry_payment",
-            statusColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+            statusColor: "border-ink bg-white text-ink",
           });
         } else {
           const failMsg: Message = {
@@ -140,7 +140,7 @@ export const CallModal: React.FC<CallModalProps> = ({
           outcome: "PAYMENT_LINK_SENT",
           amount: "SMS Dispatched",
           action: "generate_payment_link",
-          statusColor: "text-blue-400 bg-blue-500/10 border-blue-500/30",
+          statusColor: "border-ink bg-white text-ink",
         });
         setIsProcessing(false);
       }, 700);
@@ -167,7 +167,7 @@ export const CallModal: React.FC<CallModalProps> = ({
           outcome: "SCHEDULED",
           amount: "Friday 3:00 PM",
           action: "schedule_retry",
-          statusColor: "text-purple-400 bg-purple-500/10 border-purple-500/30",
+          statusColor: "border-ink bg-white text-ink",
         });
         setIsProcessing(false);
       }, 700);
@@ -189,7 +189,7 @@ export const CallModal: React.FC<CallModalProps> = ({
           outcome: "CANCEL_REQUESTED",
           amount: "Subscription Cancelled",
           action: "record_intent",
-          statusColor: "text-slate-400 bg-slate-500/10 border-slate-500/30",
+          statusColor: "border-ink bg-white text-ink",
         });
         setIsProcessing(false);
       }, 700);
@@ -211,7 +211,7 @@ export const CallModal: React.FC<CallModalProps> = ({
           outcome: "DECLINED",
           amount: "No Action Taken",
           action: "record_intent",
-          statusColor: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+          statusColor: "border-ink bg-white text-ink",
         });
         setIsProcessing(false);
       }, 700);
@@ -221,34 +221,42 @@ export const CallModal: React.FC<CallModalProps> = ({
     setIsProcessing(false);
   };
 
+  const tabClass = (active: boolean) =>
+    `label !text-xs py-1 border-b-[3px] transition-colors ${
+      active ? "!text-ink border-accent" : "border-transparent hover:!text-ink"
+    }`;
+
+  const scenarioBtn =
+    "p-3 border border-ink rounded-sm bg-white hover:bg-ink hover:text-paper text-left transition-colors group";
+
+  const quickBtn = "btn disabled:opacity-40";
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Voice recovery console for ${customer.name}`}
+    >
+      <div className="bg-white border border-ink rounded-sm w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 flex items-center justify-center">
-              <Phone className="w-5 h-5" />
+        <div className="px-6 py-5 border-b border-ink flex items-start justify-between gap-4">
+          <div>
+            <div className="flex flex-wrap items-baseline gap-3">
+              <h3 className="font-serif text-2xl font-medium tracking-tight leading-none">
+                Voice Recovery Console &middot; {customer.name}
+              </h3>
+              <span className="label">{customer.customer_id}</span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-bold text-white text-sm">
-                  Voice Recovery Console &middot; {customer.name}
-                </h3>
-                <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">
-                  {customer.customer_id}
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">
-                Due: <span className="text-white font-semibold">{formatPaise(customer.amount_paise, customer.currency)}</span> &middot; Reason: {customer.failure_reason.replace("_", " ")}
-              </p>
-            </div>
+            <p className="text-xs text-mute mt-2">
+              Due: <span className="text-ink font-semibold font-mono">{formatPaise(customer.amount_paise, customer.currency)}</span> &middot; Reason: {customer.failure_reason.replace("_", " ")}
+            </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {callActive && (
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+              <span className="flex items-center gap-2 px-2 py-1 rounded-sm text-xs font-mono border border-ink">
+                <span className="w-2 h-2 bg-accent border border-ink animate-pulse" aria-hidden="true"></span>
                 {Math.floor(callDuration / 60).toString().padStart(2, "0")}:
                 {(callDuration % 60).toString().padStart(2, "0")}
               </span>
@@ -258,42 +266,37 @@ export const CallModal: React.FC<CallModalProps> = ({
                 if (callActive) endCall();
                 onClose();
               }}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              className="btn !px-2"
+              aria-label="Close"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
         </div>
 
         {/* Tab Controls */}
-        <div className="px-6 py-2.5 bg-slate-950/30 border-b border-slate-800/80 flex items-center gap-2 text-xs">
+        <div className="px-6 pt-3 border-b border-line flex flex-wrap items-center gap-x-6 gap-y-1" role="tablist">
           <button
+            role="tab"
+            aria-selected={activeTab === "simulation"}
             onClick={() => setActiveTab("simulation")}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
-              activeTab === "simulation"
-                ? "bg-indigo-600 text-white"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
+            className={tabClass(activeTab === "simulation")}
           >
             Interactive Dialogue Simulator
           </button>
           <button
+            role="tab"
+            aria-selected={activeTab === "browser"}
             onClick={() => setActiveTab("browser")}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
-              activeTab === "browser"
-                ? "bg-indigo-600 text-white"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
+            className={tabClass(activeTab === "browser")}
           >
             LiveKit WebRTC Audio Session
           </button>
           <button
+            role="tab"
+            aria-selected={activeTab === "sip"}
             onClick={() => setActiveTab("sip")}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
-              activeTab === "sip"
-                ? "bg-indigo-600 text-white"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
+            className={tabClass(activeTab === "sip")}
           >
             Carrier Trunk Telephony (SIP)
           </button>
@@ -305,25 +308,25 @@ export const CallModal: React.FC<CallModalProps> = ({
             <>
               {/* Scenario Preset Buttons */}
               {!callActive && !outcomeResult && (
-                <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/40 space-y-3">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                    <Zap className="w-3.5 h-3.5 text-indigo-400" />
+                <div className="space-y-4">
+                  <div className="label !text-ink flex items-center gap-2">
+                    <Zap className="w-3.5 h-3.5" aria-hidden="true" />
                     <span>Select Test Scenario to Trigger Outbound Call:</span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <button
                       onClick={() =>
                         startCall(
                           "Yes, speaking. My salary just came in today, go ahead and try the payment again."
                         )
                       }
-                      className="p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-left font-medium transition-all"
+                      className={scenarioBtn}
                     >
-                      <div className="font-bold flex items-center justify-between">
+                      <div className="font-semibold flex items-center justify-between gap-2">
                         <span>Branch A: Retry Payment</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20">Maya Shah</span>
+                        <span className="font-mono text-[10px] opacity-70">Maya Shah</span>
                       </div>
-                      <p className="text-[11px] text-emerald-400/80 mt-1">
+                      <p className="text-[11px] opacity-70 mt-1">
                         Customer agrees &rarr; Tool executes retry &rarr; Status becomes RECOVERED.
                       </p>
                     </button>
@@ -334,13 +337,13 @@ export const CallModal: React.FC<CallModalProps> = ({
                           "Hi, yes. My credit card expired last month and I got a new replacement card."
                         )
                       }
-                      className="p-3 rounded-lg border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 text-left font-medium transition-all"
+                      className={scenarioBtn}
                     >
-                      <div className="font-bold flex items-center justify-between">
+                      <div className="font-semibold flex items-center justify-between gap-2">
                         <span>Branch B: Card Expired</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20">Arjun Mehta</span>
+                        <span className="font-mono text-[10px] opacity-70">Arjun Mehta</span>
                       </div>
-                      <p className="text-[11px] text-blue-400/80 mt-1">
+                      <p className="text-[11px] opacity-70 mt-1">
                         Zero read-aloud card info &rarr; Dispatches secure SMS payment link.
                       </p>
                     </button>
@@ -351,13 +354,13 @@ export const CallModal: React.FC<CallModalProps> = ({
                           "Yes, it's Maya. I'm in a client meeting right now. Can you call me back on Friday?"
                         )
                       }
-                      className="p-3 rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-left font-medium transition-all"
+                      className={scenarioBtn}
                     >
-                      <div className="font-bold flex items-center justify-between">
+                      <div className="font-semibold flex items-center justify-between gap-2">
                         <span>Branch C: Pay Later</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20">Riya Patel</span>
+                        <span className="font-mono text-[10px] opacity-70">Riya Patel</span>
                       </div>
-                      <p className="text-[11px] text-purple-400/80 mt-1">
+                      <p className="text-[11px] opacity-70 mt-1">
                         Schedules future callback in database &rarr; Status becomes SCHEDULED.
                       </p>
                     </button>
@@ -368,13 +371,13 @@ export const CallModal: React.FC<CallModalProps> = ({
                           "I actually don't use this subscription anymore. Please cancel my account."
                         )
                       }
-                      className="p-3 rounded-lg border border-slate-700 bg-slate-800/40 hover:bg-slate-800 text-slate-300 text-left font-medium transition-all"
+                      className={scenarioBtn}
                     >
-                      <div className="font-bold flex items-center justify-between">
+                      <div className="font-semibold flex items-center justify-between gap-2">
                         <span>Branch D: Cancel Subscription</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700">Rohan Verma</span>
+                        <span className="font-mono text-[10px] opacity-70">Rohan Verma</span>
                       </div>
-                      <p className="text-[11px] text-slate-400 mt-1">
+                      <p className="text-[11px] opacity-70 mt-1">
                         Zero hard-sell &rarr; Respects intent &rarr; Status CANCEL_REQUESTED.
                       </p>
                     </button>
@@ -385,7 +388,7 @@ export const CallModal: React.FC<CallModalProps> = ({
               {/* Live Transcript Stream */}
               {callActive && (
                 <div className="space-y-3">
-                  <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/70 space-y-3 min-h-[220px] max-h-[320px] overflow-y-auto">
+                  <div className="p-4 border border-line rounded-sm space-y-4 min-h-[220px] max-h-[320px] overflow-y-auto">
                     {messages.map((m, idx) => (
                       <div
                         key={idx}
@@ -393,22 +396,22 @@ export const CallModal: React.FC<CallModalProps> = ({
                           m.speaker === "Agent" ? "items-start" : "items-end"
                         }`}
                       >
-                        <span className="text-[10px] font-mono text-slate-400 mb-0.5">
+                        <span className="label mb-1">
                           {m.speaker}
                         </span>
                         <div
-                          className={`max-w-[85%] rounded-xl px-4 py-2.5 text-xs ${
+                          className={`max-w-[85%] rounded-sm px-4 py-2.5 text-xs leading-relaxed ${
                             m.speaker === "Agent"
-                              ? "bg-indigo-600/20 border border-indigo-500/30 text-indigo-100 rounded-tl-sm"
-                              : "bg-slate-800 border border-slate-700 text-white rounded-tr-sm"
+                              ? "border border-ink bg-white text-ink"
+                              : "bg-ink text-paper"
                           }`}
                         >
                           {m.text}
                         </div>
 
                         {m.toolCall && (
-                          <div className="mt-1.5 px-3 py-1 rounded bg-slate-900 border border-indigo-500/40 text-[11px] font-mono text-indigo-300 flex items-center gap-1.5">
-                            <Zap className="w-3 h-3 text-amber-400" />
+                          <div className="mt-1.5 px-2.5 py-1 rounded-sm border border-line text-[11px] font-mono text-mute flex items-center gap-1.5">
+                            <Zap className="w-3 h-3" aria-hidden="true" />
                             <span>Tool Result: {m.toolCall.name}() &rarr; {JSON.stringify(m.toolCall.result.status || m.toolCall.result)}</span>
                           </div>
                         )}
@@ -416,44 +419,44 @@ export const CallModal: React.FC<CallModalProps> = ({
                     ))}
 
                     {currentTool && (
-                      <div className="p-2 rounded bg-indigo-950/50 border border-indigo-500/30 text-indigo-300 text-xs font-mono animate-pulse flex items-center gap-2">
-                        <Zap className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+                      <div className="px-2.5 py-1.5 border border-ink rounded-sm text-xs font-mono flex items-center gap-2">
+                        <span className="w-2 h-2 bg-accent border border-ink animate-pulse" aria-hidden="true"></span>
                         <span>Backend executing: {currentTool}</span>
                       </div>
                     )}
                   </div>
 
                   {/* Customer Quick Replies during Active Call */}
-                  <div className="pt-2 border-t border-slate-800/80">
-                    <span className="text-[11px] text-slate-400 block mb-1.5 font-medium">
+                  <div className="pt-3 border-t border-line">
+                    <span className="label block mb-2">
                       Simulate Customer Spoken Response:
                     </span>
-                    <div className="flex flex-wrap gap-2 text-xs">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         onClick={() => handleCustomerTurn("Go ahead and try the charge again.")}
                         disabled={isProcessing}
-                        className="px-2.5 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30"
+                        className={quickBtn}
                       >
                         &ldquo;Try the charge again&rdquo;
                       </button>
                       <button
                         onClick={() => handleCustomerTurn("My card expired last week.")}
                         disabled={isProcessing}
-                        className="px-2.5 py-1.5 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30"
+                        className={quickBtn}
                       >
                         &ldquo;My card expired&rdquo;
                       </button>
                       <button
                         onClick={() => handleCustomerTurn("I'm driving right now, call me on Friday.")}
                         disabled={isProcessing}
-                        className="px-2.5 py-1.5 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30"
+                        className={quickBtn}
                       >
                         &ldquo;Call me on Friday&rdquo;
                       </button>
                       <button
                         onClick={() => handleCustomerTurn("Please cancel my subscription.")}
                         disabled={isProcessing}
-                        className="px-2.5 py-1.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600"
+                        className={quickBtn}
                       >
                         &ldquo;Cancel subscription&rdquo;
                       </button>
@@ -464,15 +467,15 @@ export const CallModal: React.FC<CallModalProps> = ({
 
               {/* Completed Outcome Card */}
               {outcomeResult && (
-                <div className={`p-4 rounded-xl border ${outcomeResult.statusColor} space-y-2`}>
-                  <div className="flex items-center justify-between">
+                <div className={`p-4 rounded-sm border ${outcomeResult.statusColor} space-y-2`}>
+                  <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                      <span className="font-bold text-sm">Call Completed: {outcomeResult.outcome}</span>
+                      <span className="w-3 h-3 bg-accent border border-ink" aria-hidden="true"></span>
+                      <span className="font-serif text-xl">Call Completed: {outcomeResult.outcome}</span>
                     </div>
                     <span className="text-xs font-mono">{outcomeResult.amount}</span>
                   </div>
-                  <p className="text-xs opacity-80">
+                  <p className="text-xs text-mute">
                     The backend state machine validated the action ({outcomeResult.action}) and logged structured outcome data to disk.
                   </p>
                 </div>
@@ -481,22 +484,22 @@ export const CallModal: React.FC<CallModalProps> = ({
           )}
 
           {activeTab === "browser" && (
-            <div className="p-6 rounded-xl border border-slate-800 bg-slate-950/60 text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-indigo-600/20 border border-indigo-500/40 text-indigo-400 flex items-center justify-center mx-auto">
-                <Mic className="w-8 h-8" />
+            <div className="p-6 border border-line rounded-sm text-center space-y-4">
+              <div className="w-14 h-14 border border-ink flex items-center justify-center mx-auto rounded-sm">
+                <Mic className="w-6 h-6" aria-hidden="true" />
               </div>
               <div>
-                <h4 className="font-bold text-white text-base">LiveKit WebRTC Voice Session</h4>
-                <p className="text-xs text-slate-400 max-w-md mx-auto mt-1">
-                  Creates a call session on the backend (room <code>recovery_&lt;call_id&gt;</code>). Browser audio is not wired up:
+                <h4 className="font-serif text-2xl font-medium">LiveKit WebRTC Voice Session</h4>
+                <p className="text-xs text-mute max-w-md mx-auto mt-2 leading-relaxed">
+                  Creates a call session on the backend (room <code className="font-mono">recovery_&lt;call_id&gt;</code>). Browser audio is not wired up:
                   this dashboard has no LiveKit client and nothing dispatches the voice agent worker, so no voice conversation starts from here.
                 </p>
               </div>
 
-              <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 text-xs font-mono max-w-md mx-auto text-slate-300 flex items-center justify-between">
-                <span>Customer: <strong className="text-white">{customer.name}</strong></span>
-                <span>Overdue: <strong className="text-emerald-400">{formatPaise(customer.amount_paise, customer.currency)}</strong></span>
-                <span>Card: <strong className="text-white">•••• {customer.card_last4}</strong></span>
+              <div className="p-3 border-y border-line text-xs font-mono max-w-md mx-auto flex flex-wrap items-center justify-between gap-2">
+                <span>Customer: <strong className="text-ink">{customer.name}</strong></span>
+                <span>Overdue: <strong className="text-ink">{formatPaise(customer.amount_paise, customer.currency)}</strong></span>
+                <span>Card: <strong className="text-ink">•••• {customer.card_last4}</strong></span>
               </div>
 
               <div className="pt-2 flex justify-center gap-3">
@@ -510,9 +513,9 @@ export const CallModal: React.FC<CallModalProps> = ({
                       alert(`Backend guard rejected call: ${e.message}`);
                     }
                   }}
-                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 flex items-center gap-2"
+                  className="btn btn-primary"
                 >
-                  <Volume2 className="w-4 h-4" />
+                  <Volume2 className="w-4 h-4" aria-hidden="true" />
                   <span>Create Call Session</span>
                 </button>
               </div>
@@ -520,20 +523,20 @@ export const CallModal: React.FC<CallModalProps> = ({
           )}
 
           {activeTab === "sip" && (
-            <div className="p-6 rounded-xl border border-slate-800 bg-slate-950/60 text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center mx-auto">
-                <Phone className="w-8 h-8" />
+            <div className="p-6 border border-line rounded-sm text-center space-y-4">
+              <div className="w-14 h-14 border border-ink flex items-center justify-center mx-auto rounded-sm">
+                <Phone className="w-6 h-6" aria-hidden="true" />
               </div>
               <div>
-                <h4 className="font-bold text-white text-base">Carrier Trunk Telephony (SIP)</h4>
-                <p className="text-xs text-slate-400 max-w-md mx-auto mt-1">
-                  Outbound SIP dialing is not implemented. Without a configured trunk (<code>LIVEKIT_SIP_TRUNK_ID</code>) the backend
+                <h4 className="font-serif text-2xl font-medium">Carrier Trunk Telephony (SIP)</h4>
+                <p className="text-xs text-mute max-w-md mx-auto mt-2 leading-relaxed">
+                  Outbound SIP dialing is not implemented. Without a configured trunk (<code className="font-mono">LIVEKIT_SIP_TRUNK_ID</code>) the backend
                   rejects the request (403); with one it answers 501.
                 </p>
               </div>
 
-              <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 text-xs font-mono max-w-xs mx-auto text-slate-400">
-                Carrier Trunk: <span className="text-amber-400 font-semibold">Unconfigured (Optional)</span>
+              <div className="p-3 border-y border-line text-xs font-mono max-w-xs mx-auto text-mute">
+                Carrier Trunk: <span className="text-ink font-semibold">Unconfigured (Optional)</span>
               </div>
 
               <div className="pt-2 flex justify-center gap-3">
@@ -547,9 +550,9 @@ export const CallModal: React.FC<CallModalProps> = ({
                       alert(`Backend guard rejected call: ${e.message} (Carrier trunk not configured). `);
                     }
                   }}
-                  className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 flex items-center gap-2"
+                  className="btn"
                 >
-                  <Phone className="w-4 h-4" />
+                  <Phone className="w-4 h-4" aria-hidden="true" />
                   <span>Test Carrier Trunk Dial</span>
                 </button>
               </div>
@@ -558,26 +561,20 @@ export const CallModal: React.FC<CallModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-4 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <Shield className="w-4 h-4 text-indigo-400" />
+        <div className="px-6 py-4 border-t border-ink flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs text-mute">
+            <Shield className="w-4 h-4" aria-hidden="true" />
             <span>Financial Safeguard: Agent never handles raw card or CVV details</span>
           </div>
 
           <div className="flex items-center gap-3">
             {callActive ? (
-              <button
-                onClick={() => endCall("manual_hangup")}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold flex items-center gap-2 shadow-lg shadow-rose-600/30"
-              >
-                <PhoneOff className="w-4 h-4" />
+              <button onClick={() => endCall("manual_hangup")} className="btn btn-solid">
+                <PhoneOff className="w-4 h-4" aria-hidden="true" />
                 <span>End Call</span>
               </button>
             ) : (
-              <button
-                onClick={onClose}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium"
-              >
+              <button onClick={onClose} className="btn">
                 Close
               </button>
             )}
