@@ -1,0 +1,12 @@
+[
+{"customer_id":"cus_001","name":"Maya Shah","amount_paise":129900,"currency":"INR","failure_reason":"insufficient_funds","subscription":"Apex Cloud Pro","card_last4":"4242","simulated_outcome":"SUCCESS_ON_RETRY"},
+{"customer_id":"cus_002","name":"Arjun Mehta","amount_paise":249900,"currency":"INR","failure_reason":"card_expired","subscription":"Apex Cloud Business","card_last4":"8812","simulated_outcome":"CARD_EXPIRED"},
+{"customer_id":"cus_003","name":"Riya Patel","amount_paise":79900,"currency":"INR","failure_reason":"bank_declined","subscription":"Apex Cloud Starter","card_last4":"1094","simulated_outcome":"BANK_DECLINED"},
+{"customer_id":"cus_004","name":"Kabir Nair","amount_paise":149900,"currency":"INR","failure_reason":"insufficient_funds","subscription":"Apex Cloud Pro","card_last4":"5531","simulated_outcome":"SUCCESS_ON_RETRY"},
+{"customer_id":"cus_005","name":"Ananya Iyer","amount_paise":99900,"currency":"INR","failure_reason":"no_payment_method","subscription":"Apex Cloud Pro","card_last4":"9920","simulated_outcome":"NEEDS_PAYMENT_METHOD"},
+{"customer_id":"cus_006","name":"Vikram Desai","amount_paise":189900,"currency":"INR","failure_reason":"insufficient_funds","subscription":"Apex Cloud Business","card_last4":"3344","simulated_outcome":"FAIL_THEN_SUCCEED"},
+{"customer_id":"cus_007","name":"Sneha Joshi","amount_paise":59900,"currency":"INR","failure_reason":"temporary_error","subscription":"Apex Cloud Starter","card_last4":"7711","simulated_outcome":"SUCCESS_ON_RETRY"},
+{"customer_id":"cus_008","name":"Rohan Gupta","amount_paise":349900,"currency":"INR","failure_reason":"bank_declined","subscription":"Apex Cloud Enterprise","card_last4":"6602","simulated_outcome":"BANK_DECLINED"},
+{"customer_id":"cus_009","name":"Isha Reddy","amount_paise":109900,"currency":"INR","failure_reason":"insufficient_funds","subscription":"Apex Cloud Pro","card_last4":"2245","simulated_outcome":"SUCCESS_ON_RETRY"},
+{"customer_id":"cus_010","name":"Dev Malhotra","amount_paise":299900,"currency":"INR","failure_reason":"card_expired","subscription":"Apex Cloud Lite","card_last4":"1190","simulated_outcome":"CARD_EXPIRED"}
+]

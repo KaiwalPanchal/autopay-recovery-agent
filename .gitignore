@@ -1,0 +1,44 @@
+# Environment & Secrets
+.env
+.env.*
+*.env
+!.env.example
+
+# Database & SQLite files
+*.db
+*.sqlite
+*.sqlite3
+data/app.db
+data/customers_store.json
+
+# Python caches and artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Node & Next.js builds
+node_modules/
+frontend/node_modules/
+.next/
+frontend/.next/
+out/
+dist/
+build/
+.npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS & Logs
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE & Editor
+.vscode/
+.idea/
