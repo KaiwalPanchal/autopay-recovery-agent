@@ -29,7 +29,7 @@ export const Header: React.FC<HeaderProps> = ({ onReset, onRefresh, isResetting 
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Autonomous Voice Agent &middot; LiveKit Audio &middot; Deterministic Financial Guardrails
+                Voice-agent backend demo &middot; Deterministic Financial Guardrails &middot; Simulated payments
               </p>
             </div>
           </div>

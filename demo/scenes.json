@@ -1,0 +1,74 @@
+{
+  "01-tests-and-evals": {
+    "title": "Autopay Recovery Agent - tests + offline evals",
+    "steps": [
+      {
+        "cmd": "python -m pytest -q",
+        "max_lines": 10,
+        "pause": 2
+      },
+      {
+        "cmd": "python evals/run_evals.py | tail -3",
+        "max_lines": 6,
+        "pause": 1.5
+      },
+      {
+        "cmd": "python evals/run_offline_adversarial.py 2>/dev/null | tail -4",
+        "max_lines": 8,
+        "pause": 3
+      }
+    ]
+  },
+  "02-scripted-call-simulation": {
+    "title": "Autopay Recovery Agent - scripted call simulation (no LLM, no real telephony)",
+    "env": {
+      "AUTOPAY_DB_PATH": "{tmp}/demo.db",
+      "ENVIRONMENT": "test"
+    },
+    "steps": [
+      {
+        "cmd": "python -m agent.simulate_call --customer cus_001 --scenario retry | grep -v '^$' | grep -v '^====='",
+        "max_lines": 24,
+        "pause": 3
+      },
+      {
+        "cmd": "python -m agent.simulate_call --customer cus_002 --scenario cancel | grep -v '^$' | grep -v '^====='",
+        "max_lines": 24,
+        "pause": 3
+      }
+    ]
+  },
+  "03-api-auth": {
+    "title": "Autopay Recovery Agent - API auth (operator token required)",
+    "env": {
+      "AUTOPAY_DB_PATH": "{tmp}/demo.db",
+      "OPERATOR_API_TOKEN": "gen:token",
+      "INTERNAL_API_TOKEN": "gen:token",
+      "CORS_ALLOWED_ORIGINS": "http://localhost:3000"
+    },
+    "steps": [
+      {
+        "cmd": "python -m uvicorn backend.main:app --port 8765",
+        "bg": true,
+        "wait": 5
+      },
+      {
+        "cmd": "curl -s localhost:8765/api/health",
+        "pause": 1
+      },
+      {
+        "cmd": "echo \"GET /api/customers, no token  -> HTTP $(curl -s -o /dev/null -w '%{http_code}' localhost:8765/api/customers)\"",
+        "pause": 1
+      },
+      {
+        "cmd": "echo \"POST /api/customers/reset, no token -> HTTP $(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:8765/api/customers/reset)\"",
+        "pause": 1
+      },
+      {
+        "cmd": "curl -s -H \"Authorization: Bearer $OPERATOR_API_TOKEN\" localhost:8765/api/customers | python -m json.tool | head -14",
+        "max_lines": 16,
+        "pause": 3
+      }
+    ]
+  }
+}

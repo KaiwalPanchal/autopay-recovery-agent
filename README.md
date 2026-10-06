@@ -1,304 +1,174 @@
 # Autopay Recovery Voice Agent
 
-> **Autonomous conversational AI voice agent for recurring/autopay payment recovery built on LiveKit Agents, FastAPI, and deterministic financial safeguards.**
+A portfolio project about one design rule for AI agents that touch money: **the LLM interprets, the backend authorizes.** A FastAPI backend owns every fact and every permission (identity, retry limits, locks, outcomes). A voice agent is only allowed to call narrow, call-bound tools on it.
 
----
+## What this is, and what it is not
 
-## 1. Project Overview
+| Piece | State |
+|---|---|
+| Backend API: auth, identity challenge, guards, outcome derivation, audit events | Implemented and tested |
+| Payments | **Simulated.** `backend/payments.py` is a deterministic fake. No money moves, no gateway is called |
+| Text harness and CLI simulation (`agent/text_harness.py`, `agent/simulate_call.py`) | Implemented. They drive the backend logic without an LLM |
+| LiveKit voice agent worker (`agent/agent.py`) | Written, **not run end to end**. Needs LiveKit and model keys. Nothing in this repo dispatches it to a room |
+| Browser audio | **Not wired.** The dashboard has no LiveKit client. "Create Call Session" only creates a call record |
+| Outbound SIP / phone calls | **Not implemented.** `mode=sip` returns 403 without a trunk id and 501 with one |
+| Operator dashboard (Next.js) | Works against the backend (type-checked; `npm run build` not run in this audit) |
+| Live LLM behaviour | Measured once on 2026-10-06 against Gemini (12/12 adversarial scenarios), *before* the identity and auth changes below. Not re-run. Needs `GEMINI_API_KEY` |
 
-The **Autopay Recovery Voice Agent** is a full-stack applied AI system designed to resolve failed recurring/autopay subscription payments from customers with zero financial hallucinations and strict compliance guardrails.
+In short: it is a simulated backend with a hardened control plane, plus a text harness. The voice layer is a design and an untested worker.
 
-### What the System Delivers:
-1. **10 Fictional Customer Dataset:** Pre-configured failed payments with distinct failure reasons (insufficient funds, card expired, bank declined, etc.).
-2. **Deterministic Fake Payment Processor:** Simulates payment retries and returns deterministic outcomes without processing real money.
-3. **Recovery State Machine:** Enforces valid progression (`PAYMENT_FAILED` &rarr; `CONTACTING` &rarr; `CUSTOMER_VERIFIED` &rarr; `PAY_NOW` / `PAY_LATER` / `CANCEL` / `DECLINED`).
-4. **LiveKit Voice Agent:** Low-latency conversational turn-taking, speech-to-text, LLM function calling, and text-to-speech.
-5. **Operator Dashboard (Next.js):** Real-time monitoring of recovery rates, customer cards, state machine visualizer, and an interactive call console with WebRTC and SIP modes.
-6. **Structured Audit Trail:** Automatically logs machine-readable outcomes, detected intents, tool actions, and call durations to disk.
-
----
-
-## 2. Core Design Principle
-
-The system is architected around a strict separation of concerns:
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│              THE CORE SEPARATION PRINCIPLE                  │
-├──────────────────────────────┬──────────────────────────────┤
-│    LLM / Voice Agent         │    Backend / Application     │
-│                              │                              │
-│ • Interprets customer intent │ • Enforces business logic    │
-│ • Maintains empathy & tone   │ • Validates state machine    │
-│ • Chooses tool to invoke     │ • Executes simulated charge  │
-│                              │ • Owns all financial truth   │
-└──────────────────────────────┴──────────────────────────────┘
+ Customer voice --> STT / LLM / TTS (providers) --> agent worker --HTTP + INTERNAL token--> /internal/calls/{call_id}/*
+ Operator browser (Next.js) ---------------------HTTP + OPERATOR token------------------>  /api/*
+                                                                                              |
+                                                                           FastAPI -> SQLite (customers, payments, calls, call_events)
 ```
 
-> **The model never invents payment amounts, transaction results, payment statuses, or recovery outcomes.**
+- Agent tools never take a customer id. The backend derives the customer from the call row. The worker learns the customer name from `GET /internal/calls/{id}` and ignores participant metadata.
+- Money is stored as integer paise.
+- Guard order for payment actions: `CALL_LOCKED`, `CALL_FINALIZED`, `IDENTITY_NOT_VERIFIED`, `NOT_RETRYABLE`, `RETRY_LIMIT_REACHED`.
+- The call outcome is derived by the backend from recorded events (`finalize`), never set by the model.
 
-If the customer says:
-> *"Yeah, try the payment again."*
+## Controls: implemented vs not
 
-The LLM determines:
-```text
-customer_intent = "pay_now"
-tool = retry_payment(customer_id="cus_001")
-```
-The backend determines whether `retry_payment` is legally and operationally permitted in the customer's current state, performs the simulated charge, and returns the result (`SUCCESS` or `DECLINED`).
+Implemented, each with tests (details in [`docs/threat-model.md`](docs/threat-model.md)):
 
----
+- Separate operator and internal bearer tokens, compared with `hmac.compare_digest`; no default tokens; unset token rejects everything; `POST /api/customers/reset` requires the operator token.
+- CORS allow-list (`CORS_ALLOWED_ORIGINS`), no wildcard, no credentials.
+- Strict request schemas: `intent` and identity `result` are enums, `scheduled_time` must be a future ISO datetime within 90 days, field lengths capped, unknown fields rejected.
+- Backend-verified identity: the customer's answer (last 4 digits of the card on file) is compared with seed data; 3 attempts, then the call locks. A free-form "verified" string is rejected.
+- One-way locks: wrong person, cancel, decline and identity lock-out cannot be undone within a call.
+- Idempotent retry, retry cap of 2 per customer, retry blocked for expired-card or missing-payment-method customers.
+- Sensitive-data scan on transcript text sent to the backend (regex, detection only, raw text never stored, flagged on `finalize`).
+- Tests and offline evals run on a throwaway SQLite file and never touch `data/app.db`.
 
-## 3. High-Level Architecture
+Not implemented:
 
-```text
-                         ┌───────────────────────┐
-                         │   Operator Dashboard  │
-                         │    Next.js + Tailwind │
-                         └───────────┬───────────┘
-                                     │ HTTP / SSE
-                                     ▼
-                         ┌───────────────────────┐
-                         │    FastAPI Backend    │
-                         │                       │
-                         │ • State Machine       │
-                         │ • Payment Simulator   │
-                         │ • Outcomes Logger     │
-                         └───────────┬───────────┘
-                                     │
-                 ┌───────────────────┼───────────────────┐
-                 │                   │                   │
-                 ▼                   ▼                   ▼
-         ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
-         │ Customers DB  │   │  Payments Svc │   │ Call Outcomes │
-         │ (10 Accounts) │   │ (Deterministic│   │ (Audit Trail) │
-         └───────────────┘   └───────────────┘   └───────────────┘
-                                     ▲
-                                     │ Tool Calls
-                                     │
-                         ┌───────────┴───────────┐
-                         │   LiveKit Voice Agent │
-                         │                       │
-                         │   STT → LLM → TTS     │
-                         │  (Sub-700ms Pipeline) │
-                         └───────────┬───────────┘
-                                     │
-                     ┌───────────────┴───────────────┐
-                     │                               │
-                     ▼ WebRTC                        ▼ SIP Trunk
-              Browser Client                    Telephony Provider
-             (Testing Console)                       │
-                                                     ▼
-                                            Authorized Phone Number
-```
+- Calling-hours / time-of-day limits, do-not-call or consent checks, call-frequency caps.
+- AI-disclosure enforcement in code (it is a sentence in the prompt and the greeting).
+- Recording consent, retention, deletion, data-subject-rights handling, encryption at rest.
+- Rate limiting, TLS, secret rotation, per-operator identities or roles.
+- Output filtering of what the LLM says; protection against a model speaking wrong facts.
+- Real payment authentication, real payment links, real SMS.
 
----
+**Regulatory framing.** The design targets are India's RBI fair-practices expectations for recovery calls and the DPDP Act 2023. They are targets only: this project is not compliant with, certified for, or legally reviewed against either. The earlier README claim of "TCPA / FDCPA / RBI compliance-by-design with time-of-day controls" was unsupported (TCPA and FDCPA are US laws, and no time-of-day control exists) and has been removed.
 
-## 4. The 10 Fictional Customers
+## Fictional customers (`data/customers.json`)
 
-All accounts are completely fictional. For testing and demonstration, any account can dial your authorized test telephone number.
+The identity challenge answer for each call is the `card_last4` below (fake data).
 
-| ID | Name | Amount Due | Plan | Failure Reason | Deterministic Simulation Gate |
-|---|---|---|---|---|---|
-| `cus_001` | **Maya Shah** | ₹1,299 | Apex Cloud Pro | Insufficient Funds | `SUCCESS` (Primary Happy Path) |
-| `cus_002` | **Arjun Mehta** | ₹2,499 | Apex Cloud Business | Card Expired | `CARD_EXPIRED` (Payment Link) |
-| `cus_003` | **Riya Patel** | ₹799 | Apex Cloud Starter | Bank Declined | `BANK_DECLINED` (Schedule Callback) |
-| `cus_004` | **Rohan Verma** | ₹3,499 | Apex Cloud Enterprise | Insufficient Funds | `SUCCESS` (Cancel Test) |
-| `cus_005` | **Priya Sharma** | ₹1,499 | Apex Cloud Pro Plus | Card Expired | `NEEDS_PAYMENT_METHOD` (Decline Test)|
-| `cus_006` | **Vikram Singh** | ₹4,999 | Apex Enterprise Suite | Temporary Hold | `SUCCESS` |
-| `cus_007` | **Ananya Iyer** | ₹899 | Apex Cloud Starter | Network Timeout | `ALREADY_PAID` |
-| `cus_008` | **Rahul Nair** | ₹1,999 | Apex Cloud Business | Limit Exceeded | `FAILED` |
-| `cus_009` | **Kavita Joshi** | ₹2,899 | Apex Business Plus | Bank Declined | `BANK_DECLINED` |
-| `cus_010` | **Amit Desai** | ₹649 | Apex Cloud Lite | Insufficient Funds | `SUCCESS` |
+| ID | Name | Amount due | Plan | Failure reason | Card last 4 | Simulated retry outcome |
+|---|---|---|---|---|---|---|
+| `cus_001` | Maya Shah | Rs 1,299 | Apex Cloud Pro | insufficient_funds | `4242` | `SUCCESS_ON_RETRY` |
+| `cus_002` | Arjun Mehta | Rs 2,499 | Apex Cloud Business | card_expired | `8812` | `CARD_EXPIRED` |
+| `cus_003` | Riya Patel | Rs 799 | Apex Cloud Starter | bank_declined | `1094` | `BANK_DECLINED` |
+| `cus_004` | Kabir Nair | Rs 1,499 | Apex Cloud Pro | insufficient_funds | `5531` | `SUCCESS_ON_RETRY` |
+| `cus_005` | Ananya Iyer | Rs 999 | Apex Cloud Pro | no_payment_method | `9920` | `NEEDS_PAYMENT_METHOD` |
+| `cus_006` | Vikram Desai | Rs 1,899 | Apex Cloud Business | insufficient_funds | `3344` | `FAIL_THEN_SUCCEED` (second retry succeeds) |
+| `cus_007` | Sneha Joshi | Rs 599 | Apex Cloud Starter | temporary_error | `7711` | `SUCCESS_ON_RETRY` |
+| `cus_008` | Rohan Gupta | Rs 3,499 | Apex Cloud Enterprise | bank_declined | `6602` | `BANK_DECLINED` |
+| `cus_009` | Isha Reddy | Rs 1,099 | Apex Cloud Pro | insufficient_funds | `2245` | `SUCCESS_ON_RETRY` |
+| `cus_010` | Dev Malhotra | Rs 2,999 | Apex Cloud Lite | card_expired | `1190` | `CARD_EXPIRED` |
 
----
+## Call lifecycle and outcomes
 
-## 5. Recovery State Machine
+Live HTTP path: an operator creates a call (`customer.status = in_progress`), the agent (or a test) answers the identity challenge, then uses the payment tools; `finalize` derives one outcome and syncs the customer record.
 
-The recovery lifecycle is modeled as an explicit state machine in `backend/recovery.py`:
+| Outcome (derived on `finalize`) | When |
+|---|---|
+| `RECOVERED` | customer status is recovered (a retry succeeded) |
+| `CANCEL_REQUESTED` | intent `cancel_subscription` recorded |
+| `DECLINED` | intent `decline` recorded |
+| `WRONG_PERSON` | `wrong_person` reported |
+| `IDENTITY_FAILED` | 3 wrong challenge answers |
+| `HUMAN_HANDOFF_REQUESTED` | intent `request_human` or `dispute_amount` |
+| `PAYMENT_LINK_SENT` / `SCHEDULED` | link generated / retry scheduled |
+| `UNREACHABLE` | never answered, or voicemail |
+| `FAILED` | answered, nothing else happened |
 
-```text
-                    PAYMENT_FAILED
-                          │
-                          ▼
-                     CONTACTING
-                          │
-             ┌────────────┴────────────┐
-             │                         │
-        unreachable                 answered
-             │                         │
-             ▼                         ▼
-       RETRY_LATER              CUSTOMER_VERIFIED
-                                       │
-                         ┌─────────────┼──────────────┐
-                         │             │              │
-                         ▼             ▼              ▼
-                      PAY_NOW      PAY_LATER       CANCEL
-                         │             │              │
-                         ▼             ▼              ▼
-                   RETRY_PAYMENT    SCHEDULED      DECLINED
-                         │
-                  ┌──────┴───────┐
-                  │              │
-                  ▼              ▼
-              SUCCESS         FAILURE
-                  │              │
-                  ▼              ▼
-              RECOVERED    PAYMENT_LINK
-```
+Priority is in that order. `RecoveryStateMachine.transition` (the finer-grained `PAY_NOW`, `PAY_LATER`, `CUSTOMER_VERIFIED`, `CANCEL` states) is only used by the `simulate_call` CLI; the live path does not step through those states.
 
-### Safety Transitions:
-- If a customer says *"I want to cancel"*, state moves to `CANCEL_REQUESTED`. **All future payment actions are strictly blocked**.
-- If a customer says *"Not interested"*, state moves to `DECLINED`.
-- The agent **cannot retry payment without prior customer verification**.
+## Quickstart
 
----
+Requirements: Python 3.11+, Node 18+ for the dashboard.
 
-## 6. Conversation Branches & Tools
-
-| Branch | Customer Says | Agent Behavior | Backend Tool Invoked | Final State |
-|---|---|---|---|---|
-| **A: Retry** | *"Try the charge again, salary came in."* | Acknowledges, calls retry, reports outcome. | `retry_payment(customer_id)` | `RECOVERED` |
-| **B: Expired Card** | *"My card expired last month."* | Never asks for card number. Sends SMS link. | `generate_payment_link(customer_id)` | `PAYMENT_LINK_SENT` |
-| **C: Pay Later** | *"I'm in a meeting, call Friday."* | Confirms time, queues follow-up. | `schedule_retry(customer_id, time)` | `SCHEDULED` |
-| **D: Cancel** | *"Cancel my subscription."* | Respects choice immediately. No hard-sell. | `log_call_outcome(..., outcome='cancel_requested')` | `CANCEL_REQUESTED` |
-| **E: Decline** | *"Stop calling, not interested."* | Apologizes, removes from queue. | `log_call_outcome(..., outcome='declined')` | `DECLINED` |
-
----
-
-## 7. Quickstart Guide
-
-### Prerequisites
-- Python 3.10+
-- Node.js 18+ and npm
-
-### 1. Setup & Run Backend
 ```bash
-cd autopay-recovery-agent
-python -m pip install -r requirements.txt # or pip install fastapi uvicorn httpx pydantic pytest
-python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+python -m venv .venv && . .venv/bin/activate          # Windows: .venv\Scripts\activate
+python -m pip install -r requirements.txt
+cp .env.example .env                                   # then set the two tokens
+python -c "import secrets; print(secrets.token_urlsafe(32))"   # run twice: INTERNAL_API_TOKEN and OPERATOR_API_TOKEN
 ```
-API Documentation is available at: `http://localhost:8000/docs`
 
-### 2. Run Test Suite
+For purely local experiments you may instead set `ENVIRONMENT=dev`, which makes unset tokens fall back to `dev-operator-token` / `dev-internal-token`. Never do that on a reachable host.
+
+Run the backend (it reads real environment variables; export the values from `.env` or use your shell's dotenv support):
+
 ```bash
-python -m pytest tests -v
+python -m uvicorn backend.main:app --port 8000
+# http://localhost:8000/docs
+curl -H "Authorization: Bearer $OPERATOR_API_TOKEN" http://localhost:8000/api/customers
 ```
-Verifies all 18 unit and integration tests across payments, state machine, and tool calls.
 
-### 3. Run Conversation Scenarios (CLI Simulation)
-You can simulate all 5 branches in your terminal immediately:
+Dashboard:
+
 ```bash
-# Branch A: Retry payment (Maya Shah) -> SUCCESS -> RECOVERED
-python -m agent.simulate_call --customer cus_001 --scenario retry
-
-# Branch B: Card expired (Arjun Mehta) -> PAYMENT_LINK_SENT
-python -m agent.simulate_call --customer cus_002 --scenario expired
-
-# Branch C: Pay later (Riya Patel) -> SCHEDULED
-python -m agent.simulate_call --customer cus_003 --scenario later
-
-# Branch D: Cancel (Rohan Verma) -> CANCEL_REQUESTED
-python -m agent.simulate_call --customer cus_004 --scenario cancel
-
-# Branch E: Decline (Priya Sharma) -> DECLINED
-python -m agent.simulate_call --customer cus_005 --scenario decline
+cd frontend && npm install
+NEXT_PUBLIC_OPERATOR_TOKEN=<your operator token> npm run dev     # http://localhost:3000
 ```
 
-### 4. Setup & Run Operator Dashboard
+`NEXT_PUBLIC_*` values are compiled into the browser bundle, so this is a local-demo arrangement only.
+
+Text simulation of the five conversation branches (writes to `data/app.db`, or to `AUTOPAY_DB_PATH` if set):
+
 ```bash
-cd frontend
-npm install
-npm run dev
+python -m agent.simulate_call --customer cus_001 --scenario retry     # also: expired, later, cancel, decline
 ```
-Open `http://localhost:3000` in your browser.
 
----
+Docker (not built in this audit): put both tokens in `.env`, then `docker compose up --build backend frontend`. Compose refuses to start without them. The `agent` service is behind `--profile agent` and needs live keys.
 
-## 8. Demonstration Walkthrough
+## Demos
 
-### Demo 1 — Successful Recovery (Maya Shah)
-1. Open the dashboard at `http://localhost:3000`.
-2. Locate **Maya Shah** (`cus_001`, Amount: `₹1,299`, Reason: `Insufficient Funds`).
-3. Click **Call** &rarr; Select **Branch A: Retry Payment**.
-4. Agent opens with friendly identity verification:
-   > *"Hi, is this Maya Shah? I'm an automated payment assistant calling on behalf of Apex Cloud..."*
-5. Customer states: *"Yes, speaking. My salary just came in today, go ahead and try the payment again."*
-6. Agent invokes `retry_payment('cus_001')`.
-7. Fake processor returns `SUCCESS` with transaction ID `txn_sim_xxxx`.
-8. Agent confirms: *"Great, that payment went through successfully! Your account is completely up to date."*
-9. Call finishes &rarr; Dashboard immediately updates:
-   - Status: `✓ RECOVERED`
-   - Total Recovered KPI increments by `₹1,299`.
+Terminal recordings of the real commands (each command is executed and its captured output replayed; regenerate with `python demo/record.py`, scenes in [`demo/scenes.json`](demo/scenes.json)). MP4 versions sit next to the GIFs.
 
-### Demo 2 — Card Expired / Payment Link (Arjun Mehta)
-1. Locate **Arjun Mehta** (`cus_002`, Amount: `₹2,499`, Reason: `Card Expired`).
-2. Click **Call** &rarr; Select **Branch B: Card Expired**.
-3. Customer states: *"My old credit card expired last month."*
-4. Safety constraint kicks in: Agent **does not ask for card digits**.
-5. Agent invokes `generate_payment_link('cus_002')`.
-6. Simulated SMS link generated: `https://pay.apexcloud.io/recovery/pay_xxxx?cid=cus_002`.
-7. Dashboard updates:
-   - Status: `→ LINK SENT`
-   - Payment Links KPI increments by 1.
+**Tests and offline evals**: 165 tests, 16 scenarios, 57-case offline adversarial suite ([mp4](demo/01-tests-and-evals.mp4))
 
----
+![tests and evals](demo/01-tests-and-evals.gif)
 
-## 9. Telephony & Outbound SIP Setup
+**Scripted call simulation**: a scripted conversation driving the real backend guards and outcome record. No LLM and no real telephony in this recording ([mp4](demo/02-scripted-call-simulation.mp4))
 
-To connect the agent to an outbound phone call:
+![call simulation](demo/02-scripted-call-simulation.gif)
 
-1. Configure a LiveKit Cloud project or self-hosted server in `.env`:
-   ```env
-   LIVEKIT_URL=wss://your-project.livekit.cloud
-   LIVEKIT_API_KEY=your_key
-   LIVEKIT_API_SECRET=your_secret
-   LIVEKIT_SIP_TRUNK_ID=ST_your_sip_trunk_id  # Optional carrier trunk
-   ```
-2. Create an Outbound SIP Trunk in your LiveKit Cloud dashboard (with Twilio or Telnyx).
-3. Start the LiveKit agent worker:
-   ```bash
-   python -m agent.agent dev
-   ```
-4. For browser evaluation, use the **LiveKit WebRTC Audio Session** tab. If a carrier trunk is configured, outbound PSTN calls can be routed through that trunk.
+**API auth**: operator token required on `/api/*`; 401 without it, including the reset endpoint ([mp4](demo/03-api-auth.mp4))
 
----
+![api auth](demo/03-api-auth.gif)
 
-## 10. Privacy & Safety Commitments
+## Tests and evals
 
-- **No Card Data Collection:** The agent is programmatically restricted from capturing card numbers, CVVs, or OTPs.
-- **Deterministic Discretion:** The LLM cannot negotiate unauthorized discounts or waive fees.
-- **TCPA / FDCPA / RBI Compliance-by-Design:** Strict time-of-day controls, limited-content openings, zero third-party disclosure, and instant cessation upon cancellation or decline.
-
----
-
-## 11. Verified Evaluation Scorecard & Test Status
-
-The system includes automated deterministic contract testing, safety evals, and adversarial stress testing against the live Google Gemini engine:
-
-- **Contract Tests (`tests/test_v2_contract.py`):** **7/7 PASSED (100%)**
-- **Safety & Scenario Tests (`evals/run_evals.py`):** **16/16 Scenarios, 12/12 Safety Checks PASSED (100%)**
-- **Adversarial Stress Test Suite (`evals/run_adversarial_evals.py`):** **12/12 Scenarios PASSED (100%)**
-  - Prompt Injection & DAN Jailbreak Resistance (100% Secure)
-  - Credential Baiting Refusal for Card PAN, CVV, OTP (100% Secure)
-  - Third-Party Roommate Debt Withholding (100% Secure)
-  - Phantom UPI Payment Gaslighting Defense (100% Secure)
-  - Abusive Persona De-escalation & Wrong Number Exit (100% Secure)
-
-Run the full adversarial evaluation suite:
 ```bash
-python evals/run_adversarial_evals.py
+python -m pytest -q                        # 165 tests
+python evals/run_evals.py                  # 16 scenarios + 12 sensitive-data patterns, offline
+python evals/run_offline_adversarial.py    # 57 attack cases against the backend, offline
 ```
 
----
+Measured on 2026-10-07 (Python 3.14.6, packages as pinned in `requirements.txt`):
 
-## 12. Next Frontier Roadmap: Indian Languages & S2S Voice
+- **pytest: 165 passed.** By file: adversarial 58, security/validation 50, recovery unit 29, contract 12, identity 9, agent entrypoint 4, transcript 3. Before this work the suite had 7 tests, and a bare `pytest` failed at collection.
+- **`run_evals.py`: scenarios 16/16, safety 12/12.** These test the backend and a regex, not an LLM.
+- **Offline adversarial suite: 57/57 blocked (100%)** across auth bypass 15, identity 10, injection and oversize input 14, retry abuse 7, lock bypass 7, leakage 4. The cases were written by the author of the guards, so this is regression protection against known attack shapes, not an independent audit. One case was mutation-checked: re-introducing the old "later intent unlocks a cancelled call" bug is caught by ADV-50.
+- **Live Gemini adversarial evals** (`evals/run_adversarial_evals.py`): require `GEMINI_API_KEY` and `pip install -r requirements-live-evals.txt`; not run in CI and not re-run here. `evals/adversarial_eval_results.json` is from a prior run on 2026-10-06 (12/12), made against the older identity design. The script's tool wrappers still mimic that older design and should be ported to the HTTP API before the next run.
 
-For full architectural deep dive on the next evolution of this platform, see:
-👉 **[`docs/NEXT_FRONTIER_INDIAN_VOICE_ROADMAP.md`](docs/NEXT_FRONTIER_INDIAN_VOICE_ROADMAP.md)**
+CI (`.github/workflows/ci.yml`) runs the first three commands on Python 3.11 and 3.12. It has not run yet because the repository has no remote.
 
-### Key Roadmap Priorities:
-1. **Native Multimodal Speech-to-Speech (S2S):** Direct audio-in / audio-out via Gemini Multimodal Live API with native tool calling, dropping voice-to-ear latency to **~250ms – 300ms**.
-2. **Local `faster-whisper` (CTranslate2):** Self-hosted GPU transcription for zero-cloud latency and 100% DPDP Act compliance.
-3. **Hyper-Realistic Indian Voice (Sarvam AI / Bulbul / Saarathi):** Conversational code-switching (**Hinglish**), authentic Indian English/Hindi prosody, respectful honorifics (*"-ji"*), and ambient noise suppression for real Indian telephony.
+## Repository map
 
+- `backend/` FastAPI app (`main.py`), auth (`security.py`), guards and outcomes (`recovery.py`), simulated payments, SQLite layer
+- `agent/` LiveKit worker, backend tool client, text harness, CLI simulation
+- `frontend/` Next.js operator dashboard
+- `evals/` offline evals, offline adversarial suite, live Gemini eval, methodology doc
+- `docs/` decisions, threat model, versions, progress, roadmap (Indian-language speech-to-speech, aspirational)
+
+## License
+
+MIT, copyright Kaiwal Panchal.

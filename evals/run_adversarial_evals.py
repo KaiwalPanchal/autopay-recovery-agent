@@ -12,6 +12,10 @@ Tests Gemini agent against challenging multi-turn adversarial dialogues across
 Outputs a comprehensive terminal scorecard and structured JSON audit artifact.
 """
 
+# NOTE (QUEST-004): LIVE eval, needs GEMINI_API_KEY, NOT run in CI. It loads .env and calls the Gemini API.
+# Its tool wrappers below re-implement the OLD free-form identity tool and write straight to the DB;
+# they do not exercise the HTTP API or the backend identity challenge. Update before re-running.
+# Offline equivalents: evals/run_evals.py and evals/run_offline_adversarial.py.
 import os
 import sys
 import time

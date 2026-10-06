@@ -39,7 +39,7 @@ The **Autopay Recovery Voice Agent** is a full-stack, applied AI telephony syste
                  │ Internal Authenticated Tool Calls           │
                  ▼                                             ▼
                  └───────────────► FASTAPI BACKEND ◄───────────┘
-                                   • /api/customers (CORS Enabled)
+                                   • /api/customers (operator token, CORS allow-list)
                                    • /api/calls (Session & Token JWTs)
                                    • /internal/calls/{id}/* (Guarded)
                                    • State Machine Core & Invariant Gates
@@ -48,29 +48,20 @@ The **Autopay Recovery Voice Agent** is a full-stack, applied AI telephony syste
 
 ---
 
-## 2. What Works Right Now (The Verified Baseline)
+## 2. What Is Implemented Today (QUEST-004 audit, 2026-10-07)
 
-The current implementation has been audited, purified, and verified across all functional, security, and financial invariants:
+This section replaces an earlier, more optimistic "verified baseline". Only things backed by code and a test or measured run are listed.
 
-### A. Core Features & Infrastructure
-- **LiveKit Cloud WebRTC Integration:** Direct bi-directional WebRTC audio streaming with low-latency turn-taking and instant user barge-in (interruption handling via Silero VAD).
-- **Google Gemini 3.5 Flash Lite Engine:** Ultra-low Time-To-First-Token (~100ms) decision engine executing deterministic tool calls (`verify_identity`, `get_payment_details`, `retry_payment`, `generate_payment_link`, `schedule_retry`, `record_intent`).
-- **4-Key Round-Robin Rotation Pool:** Automatically cycles requests across 4 verified Gemini API keys, scaling capacity to **60 RPM**, **2,000 Requests/Day**, and **1,000,000 TPM** with automatic 429 backoff.
-- **Purified Customer Personas:** Completely free of fake phone numbers, dummy telephony caller IDs, or mock carrier assumptions. Preserves 10 authentic personas (Maya Shah, Arjun Mehta, Riya Patel, etc.) with overdue amounts tracked strictly in **paise** and formatted as Indian Rupees (`₹`).
-- **FastAPI Backend & CORS:** Fully configured with `CORSMiddleware` (`allow_origins=["*"]`) serving `http://localhost:3000` with sub-10ms response times.
-- **Next.js Operator Dashboard:** Real-time polling (2000ms), customer profile inspection, payment link tracking, and WebRTC in-browser calling.
+- **Backend (FastAPI + SQLite, money in paise):** operator API (`/api/*`, operator token), call-bound internal tool API (`/internal/calls/{id}/*`, internal token), guard order `CALL_LOCKED` -> `CALL_FINALIZED` -> `IDENTITY_NOT_VERIFIED` -> `NOT_RETRYABLE` -> `RETRY_LIMIT_REACHED`, server-side outcome derivation, backend-verified identity challenge (last 4 of the card on file, 3 attempts), post-hoc sensitive-data scan of transcript text sent to the backend.
+- **Simulated everywhere it matters:** the payment processor is deterministic and fake; SIP dialing is not implemented (the endpoint answers 403/501); the dashboard has no LiveKit client, so there is no browser audio; nothing dispatches the agent worker to a room. The agent worker (`agent/agent.py`) is written against livekit-agents 1.x but has not been run end to end in this audit (it needs live keys).
+- **Operator dashboard (Next.js):** polls every 2 s, shows customers/stats, creates call sessions. Sends `NEXT_PUBLIC_OPERATOR_TOKEN` (demo only: it is compiled into the browser bundle).
+- **Not measured:** LLM latency, voice latency, request throughput. Earlier claims of "~100 ms TTFT", "sub-10 ms responses" and key-pool RPM figures were never measured here and have been removed.
 
-### B. Comprehensive Verification Scorecard
-- **Contract Test Suite (`tests/test_v2_contract.py`):** **7/7 PASSED (100%)**
-- **Safety & Scenario Evals (`evals/run_evals.py`):** **16/16 Scenarios, 12/12 Safety Checks PASSED (100%)**
-- **Adversarial Stress Test Suite (`evals/run_adversarial_evals.py`):** **12/12 Scenarios PASSED (100%)**
-  - *Jailbreak Defense:* 100% resistance to DAN prompts and system prompt exfiltration.
-  - *Zero Credential Leakage:* 100% refusal to collect card PAN, CVV, or OTP over voice.
-  - *Third-Party Privacy:* 100% refusal to disclose debt to roommates or unauthorized third parties.
-  - *Zero Hallucination:* Refused phantom UPI claims and unauthorized discount settlements.
-  - *Persona Handling:* Gracefully de-escalated abusive personas and terminated wrong-number calls.
-
----
+### B. Verification (measured by running them)
+- **pytest (`python -m pytest -q`):** 165 passed (see README for the breakdown).
+- **Offline scenario/safety evals (`evals/run_evals.py`):** 16/16 scenarios, 12/12 sensitive-data patterns flagged. These are deterministic checks of the backend and a regex, not of an LLM.
+- **Offline adversarial suite (`evals/run_offline_adversarial.py`):** 57/57 attacks blocked. No LLM involved.
+- **Live Gemini adversarial evals (`evals/run_adversarial_evals.py`):** need `GEMINI_API_KEY`. The checked-in `evals/adversarial_eval_results.json` is from a prior manual run (2026-10-06, `gemini-3.5-flash-lite`, 12/12 scenarios passed) made BEFORE the identity challenge and auth changes; its tool wrappers re-implement the old free-form identity tool, so it must be updated before it is re-run. It was not re-run in this audit.
 
 ## 3. Speech Recognition (STT): Faster-Whisper vs. Cloud Deepgram
 

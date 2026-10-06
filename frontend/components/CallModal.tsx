@@ -488,8 +488,8 @@ export const CallModal: React.FC<CallModalProps> = ({
               <div>
                 <h4 className="font-bold text-white text-base">LiveKit WebRTC Voice Session</h4>
                 <p className="text-xs text-slate-400 max-w-md mx-auto mt-1">
-                  Connect your microphone directly to the LiveKit voice agent room (<code>recovery_{customer.customer_id}</code>).
-                  The agent runs real-time STT &rarr; LLM (with strictly bound payment tools) &rarr; TTS with sub-700ms voice response latency.
+                  Creates a call session on the backend (room <code>recovery_&lt;call_id&gt;</code>). Browser audio is not wired up:
+                  this dashboard has no LiveKit client and nothing dispatches the voice agent worker, so no voice conversation starts from here.
                 </p>
               </div>
 
@@ -504,7 +504,7 @@ export const CallModal: React.FC<CallModalProps> = ({
                   onClick={async () => {
                     try {
                       const res = await initiateCall(customer.customer_id, "browser");
-                      alert(`WebRTC session created: ${res.call_id} (Room: ${res.room_name})`);
+                      alert(`Call session created: ${res.call_id} (Room: ${res.room_name}). No audio is connected.`);
                       onCallCompleted();
                     } catch (e: any) {
                       alert(`Backend guard rejected call: ${e.message}`);
@@ -513,7 +513,7 @@ export const CallModal: React.FC<CallModalProps> = ({
                   className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 flex items-center gap-2"
                 >
                   <Volume2 className="w-4 h-4" />
-                  <span>Connect WebRTC Audio (Recommended)</span>
+                  <span>Create Call Session</span>
                 </button>
               </div>
             </div>
@@ -527,8 +527,8 @@ export const CallModal: React.FC<CallModalProps> = ({
               <div>
                 <h4 className="font-bold text-white text-base">Carrier Trunk Telephony (SIP)</h4>
                 <p className="text-xs text-slate-400 max-w-md mx-auto mt-1">
-                  Outbound carrier telephony requires a configured SIP trunk (via <code>LIVEKIT_SIP_TRUNK_ID</code>).
-                  Without a carrier trunk, requests are cleanly rejected by the backend security boundary.
+                  Outbound SIP dialing is not implemented. Without a configured trunk (<code>LIVEKIT_SIP_TRUNK_ID</code>) the backend
+                  rejects the request (403); with one it answers 501.
                 </p>
               </div>
 
@@ -544,7 +544,7 @@ export const CallModal: React.FC<CallModalProps> = ({
                       alert(`SIP call session created: ${res.call_id}`);
                       onCallCompleted();
                     } catch (e: any) {
-                      alert(`Backend guard rejected call: ${e.message} (Carrier trunk not configured). Please use WebRTC Audio Session for real-time voice.`);
+                      alert(`Backend guard rejected call: ${e.message} (Carrier trunk not configured). `);
                     }
                   }}
                   className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 flex items-center gap-2"

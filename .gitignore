@@ -42,3 +42,18 @@ Thumbs.db
 # IDE & Editor
 .vscode/
 .idea/
+
+# Added in QUEST-004
+frontend/.env*.local
+*.egg-info/
+.venv/
+venv/
+.tox/
+.coverage.*
+*.tsbuildinfo
+next-env.d.ts
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+.DS_Store
+!frontend/public/.gitkeep

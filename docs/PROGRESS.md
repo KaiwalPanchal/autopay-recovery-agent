@@ -1,41 +1,24 @@
 # Progress Log
 
-## Phase 0: Scaffold and External Readiness   Status: IN PROGRESS
-Date: 2026-10-04
+Reconciled with reality on 2026-10-07 (QUEST-004). Earlier versions of this file listed every check as PENDING. Results below come from commands run on that date (Windows, Python 3.14.6 in a throwaway venv).
 
-| Check | Command / action run | Actual output (paste) | Result |
-|---|---|---|---|
-| V-0.1 | Health check endpoint | PENDING | PENDING |
-| V-0.2 | `pytest tests -q` | PENDING | PENDING |
-| V-0.3 | Frontend `npm run build` | PENDING | PENDING |
-| V-0.4 | LiveKit credentials / test room | PENDING | PENDING |
-| V-0.5 | SIP provider decision | PENDING | PENDING |
-| V-0.6 | `docs/VERSIONS.md` lists pinned versions | File created | PASS |
+| Area | Status | Evidence |
+|---|---|---|
+| Backend (deterministic core, auth, identity challenge) | Implemented | `python -m pytest -q`: 165 passed |
+| Offline scenario + safety evals | Passing | `python evals/run_evals.py`: 16/16 scenarios, 12/12 safety patterns |
+| Offline adversarial suite | Passing | `python evals/run_offline_adversarial.py`: 57/57 blocked |
+| Frontend type-check | Passing | `npx tsc --noEmit` exit 0 (`npm run build` not run) |
+| Docker images | Not built | Dockerfiles/compose edited; `docker compose config` validates the interpolation only |
+| CI | Written, never run | `.github/workflows/ci.yml`; the repo has no commits and no remote |
+| Voice agent worker | Not run | Needs LiveKit + model keys; not exercised end to end |
+| Browser audio | Not implemented | Dashboard has no LiveKit client |
+| Outbound SIP | Not implemented | `mode=sip` returns 403/501 |
+| Payments | Simulated | `backend/payments.py` is a deterministic fake |
+| Live Gemini adversarial evals | Prior run only | 12/12 on 2026-10-06 before the identity/auth changes; not re-run |
+| Code coverage | Not measured | The old "coverage >= 90%" gate was never run |
 
-Call IDs used as evidence: N/A  
-Deviations from spec (with DECISIONS.md IDs): None  
-Open issues: None  
-Gate result: IN PROGRESS
-
----
-
-## Phase 1: Backend (Deterministic Core)   Status: NOT STARTED
-Date: 2026-10-04
-
-| Check | Command / action run | Actual output (paste) | Result |
-|---|---|---|---|
-| V-1.1 | `python scripts/seed.py && sqlite3 data/app.db "select count(*) from customers"` | PENDING | PENDING |
-| V-1.2 | `pytest tests/test_payments.py -q` | PENDING | PENDING |
-| V-1.3 | `pytest tests/test_recovery.py -q` | PENDING | PENDING |
-| V-1.4 | Guard tests (Section 6.3) | PENDING | PENDING |
-| V-1.5 | Outcome derivation tests (Section 6.4) | PENDING | PENDING |
-| V-1.6 | API contract tests (`tests/test_api.py`) | PENDING | PENDING |
-| V-1.7 | Scripted walk-through cus_001 | PENDING | PENDING |
-| V-1.8 | Scripted walk-through cus_002 | PENDING | PENDING |
-| V-1.9 | Scripted walk-through cus_006 | PENDING | PENDING |
-| V-1.10 | Calling `/payment` before identity | PENDING | PENDING |
-| V-1.11 | After intent `cancel_subscription`, call `/retry` | PENDING | PENDING |
-| V-1.12 | Finalize twice idempotency | PENDING | PENDING |
-| V-1.13 | Code coverage ≥ 90% | PENDING | PENDING |
-
-Gate result: NOT STARTED
+## Open items
+- Create a git remote and see CI go green (needs the owner).
+- Rotate every key that sat in `.env` (LiveKit, OpenAI, Gemini).
+- Port `run_adversarial_evals.py` to drive the real HTTP API and the identity challenge, then re-run it with keys.
+- Wire LiveKit dispatch and a browser audio client, or keep stating this is a simulated backend plus text harness.

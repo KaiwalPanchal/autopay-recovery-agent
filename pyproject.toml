@@ -1,0 +1,31 @@
+[project]
+name = "autopay-recovery-agent"
+version = "2.1.0"
+description = "Autopay payment-recovery voice agent: LLM interprets, backend authorizes. Simulated payments."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Kaiwal Panchal" }]
+# Lower bounds; requirements*.txt hold the exact versions the tests were run against.
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn>=0.30",
+  "pydantic>=2.9",
+  "sqlalchemy>=2.0.35",
+  "httpx>=0.27",
+  "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3"]
+agent = [
+  "livekit-agents>=1.8",
+  "livekit-plugins-openai>=1.8",
+  "livekit-plugins-deepgram>=1.8",
+  "livekit-plugins-cartesia>=1.8",
+  "livekit-plugins-google>=1.8",
+]
+live-evals = ["google-generativeai>=0.8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

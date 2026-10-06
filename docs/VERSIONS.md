@@ -1,22 +1,26 @@
-# Pinned Library & Tool Versions
+# Versions
 
-| Component | Pinned Version | Notes |
-|---|---|---|
-| Python Runtime | 3.14.6 / 3.11+ | Host environment is Python 3.14.6 |
-| Node.js / npm | Node v22.20.0 / npm 10.9.3 | Host environment |
-| FastAPI | `fastapi==0.115.0` | Backend API Framework |
-| SQLAlchemy | `sqlalchemy==2.0.35` | SQLite ORM & Query Builder |
-| Pydantic | `pydantic==2.9.2` | Data validation & serialization |
-| Uvicorn | `uvicorn==0.31.0` | ASGI Web Server |
-| HTTPX | `httpx==0.27.2` | HTTP client for tools and testing |
-| Pytest | `pytest==8.3.3` | Test Runner |
-| Next.js | `next@14.2.15` | App Router Frontend |
-| React | `react@18.3.1` | UI Library |
-| React DOM | `react-dom@18.3.1` | DOM Renderer |
-| Tailwind CSS | `tailwindcss@3.4.14` | Utility-first CSS |
-| Lucide React | `lucide-react@0.453.0` | Iconography |
-| TypeScript | `typescript@5.6.3` | Static Type Checking |
-| LiveKit Agents | `livekit-agents>=0.8.0` | Realtime Voice Agent Framework |
-| LiveKit Plugins OpenAI | `livekit-plugins-openai>=0.8.0` | LLM & STT Adapter |
-| LiveKit Plugins Deepgram | `livekit-plugins-deepgram>=0.8.0` | Low-latency streaming STT |
-| LiveKit Plugins Cartesia | `livekit-plugins-cartesia>=0.8.0` | Low-latency streaming TTS |
+## Python (exact pins in `requirements.txt`, verified 2026-10-07)
+Installed into a clean venv on Python 3.14.6 and the full suite run against them. `pip install --dry-run --python-version 3.11` and `3.12` resolved the same pins; the suite itself was run on 3.14 only (CI will exercise 3.11 and 3.12).
+
+| Package | Version |
+|---|---|
+| fastapi | 0.142.2 |
+| starlette (transitive) | 1.7.0 |
+| uvicorn | 0.54.0 |
+| pydantic | 2.13.5 |
+| sqlalchemy | 2.1.3 |
+| httpx | 0.28.1 |
+| python-dotenv | 1.2.4 |
+| pytest | 9.1.1 |
+
+`pyproject.toml` carries lower bounds only (`requires-python >= 3.11`).
+
+## Voice agent (`requirements-agent.txt`)
+`livekit-agents`, `livekit-plugins-openai`, `-deepgram`, `-cartesia`, `-google` all `==1.8.5`. Verified to install and import on Python 3.14 and to expose `llm.function_tool`, `AgentSession` and the `conversation_item_added` event. Not run against a live LiveKit server.
+
+## Live evals (`requirements-live-evals.txt`)
+`google-generativeai==0.8.6` (latest on PyPI at the time; the package is deprecated upstream in favour of `google-genai`).
+
+## Frontend (`frontend/package-lock.json` is the source of truth)
+Next.js 14.2.x, React 18.3.x, Tailwind 3.4.x, TypeScript 5.x. Node 20 in the Dockerfile; Node 22 on the dev machine. Not re-built in this audit.

@@ -3,8 +3,8 @@
 Coordinates real-time STT -> LLM (with deterministic function tools) -> TTS pipeline.
 """
 
+import asyncio
 import os
-import json
 import logging
 from typing import Optional
 from dotenv import load_dotenv
@@ -14,14 +14,8 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("autopay-recovery-agent")
 
-LIVEKIT_URL = os.getenv("LIVEKIT_URL", "wss://recovery-demo.livekit.cloud")
-LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY", "")
-LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET", "")
-
 from agent.prompts import get_system_prompt
 from agent.tools import RecoveryAgentTools, create_livekit_function_context
-from agent.state import AgentCallState
-from backend.database import db
 import itertools
 
 _gemini_key_cycle = None
@@ -42,12 +36,43 @@ def get_next_gemini_key() -> Optional[str]:
     return next(_gemini_key_cycle)
 
 
-def create_voice_pipeline_agent(call_id: str, customer_id: str = "cus_001"):
-    """Instantiates a configured LiveKit VoicePipelineAgent with safety constraints."""
-    customer = db.get_customer(customer_id) or db.get_customer("cus_001")
-    customer_dict = customer.model_dump() if customer else {"name": "Maya Shah", "customer_id": "cus_001", "amount": 1299}
+def fetch_call_context(call_id: str):
+    """Ask the backend (not the local DB, not the room) who this call is for. None if unknown."""
+    try:
+        resp = RecoveryAgentTools(call_id).context()
+    except RuntimeError:
+        raise
+    except Exception as e:
+        logger.error(f"Could not reach backend for call context: {e}")
+        return None
+    return resp.get("data") if resp.get("ok") else None
 
-    system_instruction = get_system_prompt(customer_dict)
+
+def attach_transcript_hook(session, call_id: str):
+    """Forward each finalized utterance to the backend, which runs the sensitive-data scan.
+
+    Best effort and detection-only: a failure here never interrupts the call. Written against
+    livekit-agents 1.x ``conversation_item_added``; not exercised by the automated tests.
+    """
+    tools = RecoveryAgentTools(call_id)
+
+    def on_item(ev):
+        try:
+            role = getattr(ev.item, "role", None)
+            text = getattr(ev.item, "text_content", None)
+            if role not in ("user", "assistant") or not text:
+                return
+            speaker = "customer" if role == "user" else "agent"
+            asyncio.get_running_loop().create_task(asyncio.to_thread(tools.record_transcript, speaker, text))
+        except Exception as e:  # never break the call
+            logger.warning(f"transcript hook error: {e}")
+
+    session.on("conversation_item_added", on_item)
+
+
+def create_voice_pipeline_agent(call_id: str):
+    """Instantiates a configured LiveKit voice agent with safety constraints."""
+    system_instruction = get_system_prompt()
     fnc_ctx = create_livekit_function_context(call_id)
 
     try:
@@ -120,29 +145,20 @@ async def entrypoint(ctx):
     logger.info(f"Connecting to room: {ctx.room.name}")
     await ctx.connect()
 
-    # Extract customer_id from room name or participant metadata
-    customer_id = "cus_001"
-    for p in ctx.room.remote_participants.values():
-        if p.metadata:
-            try:
-                meta = json.loads(p.metadata)
-                if "customer_id" in meta:
-                    customer_id = meta["customer_id"]
-                    break
-            except Exception:
-                pass
-
-    logger.info(f"Initiating recovery voice session for customer: {customer_id}")
-    customer = db.get_customer(customer_id)
-    customer_name = customer.name if customer else "Maya"
-    amount = customer.amount if customer else 1299
-    currency = "₹" if (customer and customer.currency == "INR") else "$"
-
+    # The call id comes from the dispatch job metadata (server side). Participant metadata is
+    # client-controlled and is deliberately NOT used to pick the customer.
     call_id = getattr(getattr(ctx, "job", None), "metadata", "")
     if not call_id:
         logger.error("LiveKit dispatch metadata must contain call_id.")
         return
-    agent_obj, system_instruction = create_voice_pipeline_agent(call_id, customer_id)
+    call_ctx = fetch_call_context(call_id)
+    if not call_ctx:
+        logger.error(f"Backend does not know call {call_id}; refusing to start.")
+        return
+    customer_name = call_ctx.get("customer_name") or "the account holder"
+    logger.info(f"Initiating recovery voice session for call: {call_id}")
+
+    agent_obj, system_instruction = create_voice_pipeline_agent(call_id)
     if not agent_obj:
         logger.error("Could not construct Voice agent. Check API keys.")
         return
@@ -152,6 +168,7 @@ async def entrypoint(ctx):
 
     if isinstance(agent_obj, tuple):
         session, agent = agent_obj
+        attach_transcript_hook(session, call_id)
         await session.start(agent, room=ctx.room)
         await session.say(greeting, allow_interruptions=True)
     else:

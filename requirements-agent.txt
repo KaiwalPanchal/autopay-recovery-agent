@@ -1,0 +1,8 @@
+# Voice-agent worker (python -m agent.agent). Needs real provider keys to actually run.
+# Pinned to the versions that installed cleanly during QUEST-004 (Python 3.14 resolve).
+-r requirements.txt
+livekit-agents==1.8.5
+livekit-plugins-openai==1.8.5
+livekit-plugins-deepgram==1.8.5
+livekit-plugins-cartesia==1.8.5
+livekit-plugins-google==1.8.5

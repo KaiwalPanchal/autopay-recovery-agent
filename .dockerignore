@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+.git
+.github
+data/app.db
+data/customers_store.json
+__pycache__
+*.pyc
+.pytest_cache
+frontend/node_modules
+frontend/.next
+tests
+evals
+docs
